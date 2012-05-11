@@ -101,9 +101,9 @@ def render(path, padding='', tab=3, indent=1, dense=False):
         rslt.append(indented + padding + '%s[%s]' % (prefix, ensure_unicode(name)))
         if type == DIR:
             dirpath = join(path, name)
-            lead = last and (' ' * 6) or (BLANK + ' ' * 5)
+            lead = last and (' ' * (tab + 3)) or (BLANK + ' ' * (tab + 2))
             rslt.append(indented + padding + lead)
-            subrslt = render(dirpath, padding=(padding+lead), tab=tab, indent=indent, dense=dense)
+            subrslt = render(dirpath, padding=(padding+lead+indented[:-1]), tab=tab, indent=indent, dense=dense)
             if subrslt:
                 rslt.append(subrslt)
         if not dense:
@@ -112,7 +112,7 @@ def render(path, padding='', tab=3, indent=1, dense=False):
     return unicode(rslt)
 
 
-def tree(path, dense=False):
+def tree(path, tab=3, indent=1, dense=False):
     path = expanduser(path)
     path = abspath(path)
     if not os.path.exists(path):
@@ -121,7 +121,7 @@ def tree(path, dense=False):
     rslt = []
     rslt.append(path)
     rslt.append('')
-    rslt.append(render(ensure_unicode(path).encode('utf8'), dense=dense))
+    rslt.append(render(ensure_unicode(path).encode('utf8'), tab=tab, indent=indent, dense=dense))
     return '\n'.join(rslt)
 
 if __name__ == '__main__':
