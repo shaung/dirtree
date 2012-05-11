@@ -115,6 +115,8 @@ def render(path, padding='', tab=3, indent=1, dense=False):
 def tree(path, dense=False):
     path = expanduser(path)
     path = abspath(path)
+    if not os.path.exists(path):
+        raise NotExistsError, path
 
     rslt = []
     rslt.append(path)
@@ -123,5 +125,11 @@ def tree(path, dense=False):
     return '\n'.join(rslt)
 
 if __name__ == '__main__':
-    print tree('../')
+    import argparse
+    parser = argparse.ArgumentParser(description='Print the tree structure of specified directory.')
+    parser.add_argument('path', metavar='path', type=str, 
+                       help='the root directory')
+    args = parser.parse_args()
+    path = args.path
+    print tree(args.path)
 
