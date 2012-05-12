@@ -36,6 +36,18 @@ LINE    = u'─'
 
 DIR, FILE, LINK = TYPES = range(3)
 
+def ensure_unicode(s):
+    if isinstance(s, unicode):
+        return s
+    else:
+        for enc in ('utf8', 'cp932'):
+            try:
+                return s.decode(enc)
+            except:
+                pass
+        return s.decode('utf8', 'ignore')
+
+
 def file_filter(name):
     return not name.startswith('.')
 
@@ -52,17 +64,6 @@ filter_funcs = {
     LINK    : link_filter,
 }
 
-
-def ensure_unicode(s):
-    if isinstance(s, unicode):
-        return s
-    else:
-        for enc in ('utf8', 'cp932'):
-            try:
-                return s.decode(enc)
-            except:
-                pass
-        return s.decode('utf8', 'ignore')
 
 
 def filters((type, name)):
@@ -89,40 +90,61 @@ class Lines(list):
         return '\n'.join(ensure_unicode(x) for x in self)
 
 
-def render(path, padding='', tab=3, indent=1, dense=False):
-    rslt = Lines()
-    indented = ' '*indent
+class DirTree(object):
+    _defaults = {
+        'tab'       : 3,
+        'indent'    : 1,
+        'dense'     : False,
+    }
 
-    items = list(filter(filters, (get_item(path, x) for x in os.listdir(path))))
+    def __init__(self, path, **kws):
+        self.path = path
+        paras = DirTree._defaults
+        paras.update(**kws)
+        for k, v in paras.iteritems():
+            setattr(self, k, v)
 
-    for i, (type, name) in enumerate(items):
-        last = (i == (len(items) - 1))
-        prefix = '%s%s ' % ((last and END or START), LINE * tab)
-        rslt.append(indented + padding + '%s[%s]' % (prefix, ensure_unicode(name)))
-        if type == DIR:
-            dirpath = join(path, name)
-            lead = last and (' ' * (tab + 3)) or (BLANK + ' ' * (tab + 2))
-            rslt.append(indented + padding + lead)
-            subrslt = render(dirpath, padding=(padding+lead+indented[:-1]), tab=tab, indent=indent, dense=dense)
-            if subrslt:
-                rslt.append(subrslt)
-        if not dense:
-            rslt.append(indented + padding + ((not last) and BLANK or ''))
+    def render(self, path, padding=''):
+        rslt = Lines()
+        indented = ' ' * self.indent
 
-    return unicode(rslt)
+        items = list(filter(filters, (get_item(path, x) for x in os.listdir(path))))
+
+        for i, (type, name) in enumerate(items):
+            last = (i == (len(items) - 1))
+            prefix = '%s%s ' % ((last and END or START), LINE * self.tab)
+            rslt.append(indented + padding + '%s[%s]' % (prefix, ensure_unicode(name)))
+            if type == DIR:
+                dirpath = join(path, name)
+                lead = (last and ' ' or BLANK) + ' ' * (self.tab + 2)
+                if not self.dense:
+                    rslt.append(indented + padding + lead)
+                subrslt = self.render(dirpath, padding=(padding+lead+indented[:-1]))
+                if subrslt:
+                    rslt.append(subrslt)
+            if not self.dense:
+                rslt.append(indented + padding + ((not last) and BLANK or ''))
+
+        return unicode(rslt)
+
+    def tree(self):
+        path = expanduser(self.path)
+        path = abspath(path)
+        if not os.path.exists(path):
+            raise NotExistsError, path
+
+        rslt = []
+        rslt.append(path)
+        if not self.dense:
+            rslt.append('')
+        rslt.append(self.render(ensure_unicode(path).encode('utf8')))
+        return '\n'.join(rslt)
 
 
-def tree(path, tab=3, indent=1, dense=False):
-    path = expanduser(path)
-    path = abspath(path)
-    if not os.path.exists(path):
-        raise NotExistsError, path
+def tree(path, *args, **kws):
+    t = DirTree(path, *args, **kws)
+    return t.tree()
 
-    rslt = []
-    rslt.append(path)
-    rslt.append('')
-    rslt.append(render(ensure_unicode(path).encode('utf8'), tab=tab, indent=indent, dense=dense))
-    return '\n'.join(rslt)
 
 if __name__ == '__main__':
     import argparse
